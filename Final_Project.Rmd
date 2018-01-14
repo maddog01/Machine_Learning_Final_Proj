@@ -1,0 +1,129 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document: default
+---
+#Pull Data
+
+```{r}
+library(caret)
+library(rpart)
+library(randomForest)
+library(rpart.plot)
+library(rattle)
+```
+
+We begin by pulling the data from the excel files
+
+```{r, echo = TRUE, results='hide'}
+pml_training <- read.csv("pml-training.csv", na.strings = c("NA", "#DIV/0", ""))
+
+pml_testing <- read.csv("pml-testing.csv", na.strings = c("NA", "#DIV/0", ""))
+
+```
+
+#Splitting the training data
+
+We now split the training data into a training group (70%) and a testing group (30%).
+
+```{r, echo = TRUE, results='hide'}
+
+set.seed(2121)
+
+train <- createDataPartition(y=pml_training$classe, p=0.7, list=FALSE)
+
+in_train <- pml_training[train,]
+
+in_test <- pml_training[-train,]
+
+```
+
+#Cleaning the data
+
+In order to create a viable prediction model, we need to cut out the useless variables.
+
+The first seven variables are of no use to us and should be removed.
+
+```{r, echo = TRUE}
+
+in_train <- in_train[, -c(1:7)]
+in_test <- in_test[, -c(1:7)]
+
+dim(in_train)
+dim(in_test)
+
+```
+
+Next, we delete columns that have scarce data. We want columns of which at least 10% of their values are not "NA".
+
+```{r, echo = TRUE}
+
+in_train <- in_train[, colSums(is.na(in_train))==0]
+in_test <- in_test[, colSums(is.na(in_test))==0]
+
+dim(in_train)
+dim(in_test)
+
+```
+
+We now have the data sets cut down to 53 variables. 
+
+#Model 1: Decision tree
+
+```{r}
+dec_tre_intr <- rpart(classe ~., data = in_train, method = "class")
+```
+
+plot of decision tree:
+
+```{r}
+fancyRpartPlot(dec_tre_intr)
+```
+
+
+
+```{r}
+
+predict_dt <- predict(dec_tre_intr, in_test,  type = "class")
+
+confusionMatrix(predict_dt, in_test$classe)
+```
+
+Our decision tree model has an accuracy of  0.7567. 
+
+#Model 2: Random Forest
+
+```{r}
+
+ran_fr_intr <- randomForest(classe ~., data = in_train, method = "class")
+predict_rf <- predict(ran_fr_intr, in_test,  type = "class")
+
+confusionMatrix(predict_rf, in_test$classe)
+
+```
+
+
+
+In comparrison we see that our random forest model is more accuarate than our decision tree model (decision tree accuracy: 75.67%, random forest accuracy: 99.44%).
+
+We will use the random forest model for our predictions.
+
+The expected error range is: 0.9961-0.9921 = 0.004, which is less than 1%. So out of 20 different test cases, it is highly unlikely that any of our predictions will be incorrect.
+
+#Prediction
+
+We finish by running our prediction on the original 20 test cases:
+
+```{r}
+predict(ran_fr_intr, newdata = pml_testing)
+
+```
+
+
+
+
+
+
+
